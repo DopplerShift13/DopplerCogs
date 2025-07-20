@@ -1,6 +1,8 @@
 import discord
 from redbot.core import commands, Config
 import logging
+from discord import app_commands
+from discord.ext import commands
 
 log = logging.getLogger("red.anonymousform")
 
@@ -35,28 +37,22 @@ class AnonymousForm(commands.Cog):
         await self.config.guild(ctx.guild).allowed_role.set(role.id)
         await ctx.send(f"✅ Only members with the **{role.name}** role can submit feedback.")
 
-    @commands.command(name="anonform")
-    @commands.guild_only()
-    async def anonform(self, ctx: commands.Context):
-        """Submit anonymous feedback via modal."""
-
-        # Delete the trigger message for privacy
-        try:
-            await ctx.message.delete()
-        except discord.Forbidden:
-            pass
+    @app_commands.command(name="anonform", description="Submit anonymous feedback via a modal.")
+    async def anonform(self, interaction: discord.Interaction):
+        """Submit anonymous feedback via a modal."""
 
         # Permission check
-        allowed_role_id = await self.config.guild(ctx.guild).allowed_role()
+        allowed_role_id = await self.config.guild(interaction.guild).allowed_role()
         if allowed_role_id:
-            role = discord.utils.get(ctx.author.roles, id=allowed_role_id)
+            member = interaction.user
+            role = discord.utils.get(member.roles, id=allowed_role_id)
             if not role:
-                return await ctx.send("🚫 You don't have permission to use this command.", delete_after=5)
+                return await interaction.response.send_message(
+                    "🚫 You don't have permission to use this command.", ephemeral=True)
 
-        # Check log channel
-        log_channel_id = await self.config.guild(ctx.guild).log_channel()
+        log_channel_id = await self.config.guild(interaction.guild).log_channel()
         if not log_channel_id:
-            return await ctx.send("❌ Feedback channel not set. Please contact an admin.")
+            return await interaction.response.send_message("❌ Feedback channel not set.", ephemeral=True)
 
         class FeedbackModal(discord.ui.Modal, title="Anonymous Feedback Form"):
             feedback = discord.ui.TextInput(
@@ -67,8 +63,8 @@ class AnonymousForm(commands.Cog):
                 required=True
             )
 
-            async def on_submit(self, interaction: discord.Interaction):
-                log_channel = ctx.guild.get_channel(log_channel_id)
+            async def on_submit(self, modal_interaction: discord.Interaction):
+                log_channel = interaction.guild.get_channel(log_channel_id)
                 if log_channel:
                     embed = discord.Embed(
                         title="📩 New Anonymous Feedback",
@@ -76,6 +72,7 @@ class AnonymousForm(commands.Cog):
                         color=discord.Color.blue()
                     )
                     await log_channel.send(embed=embed)
-                await interaction.response.send_message("✅ Your feedback has been submitted anonymously!", ephemeral=True)
+                await modal_interaction.response.send_message(
+                    "✅ Your feedback has been submitted anonymously!", ephemeral=True)
 
-        await ctx.send_modal(FeedbackModal())
+        await interaction.response.send_modal(FeedbackModal())
