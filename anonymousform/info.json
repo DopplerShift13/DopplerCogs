@@ -1,0 +1,9 @@
+{
+  "author": ["Doppler"],
+  "install_msg": "Thanks for installing AnonymousForm!",
+  "name": "anonymousform",
+  "short": "Anonymous feedback form",
+  "description": "Submit anonymous feedback via a modal.",
+  "tags": ["feedback", "anonymous"],
+  "type": "COG"
+}
